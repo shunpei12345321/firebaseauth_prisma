@@ -1,0 +1,1 @@
+# prisma-demo2 initgit add README.mdgit commit -m first commitgit branch -M maingit remote add origin https://github.com/shunpei12345321/prisma-demo2.gitgit push -u origin main
