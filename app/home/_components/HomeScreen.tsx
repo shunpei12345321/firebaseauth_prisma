@@ -16,16 +16,32 @@ type Props = {
 
 export default function HomeScreen({ users }: Props) {
 	const [deletingId, setDeletingId] = useState<number | null>(null);
-
+	const [currentUid, setCurrentUid] = useState<string | null>(null);
+	const [currentName, setCurrentName] = useState<string | null>(null);
 	const router = useRouter();
 
-	// 🔐 ログインチェック
 	useEffect(() => {
-		const unsubscribe = onAuthStateChanged(auth, (user) => {
+		const unsubscribe = onAuthStateChanged(auth, async (user) => {
 			if (!user) {
 				router.push("/login");
+			} else {
+				setCurrentUid(user.uid);
+				setCurrentName(user.displayName ?? "未設定");
+
+				const token = await user.getIdToken();
+				const res = await fetch("/api/check-user", {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({ uid: user.uid }),
+				});
+				if (res.status === 404) {
+					router.push("/signup");
+				}
 			}
 		});
+
 		return () => unsubscribe();
 	}, [router]);
 
@@ -38,7 +54,7 @@ export default function HomeScreen({ users }: Props) {
 		});
 
 		if (res.ok) {
-			location.reload(); // ✅ 簡易：削除後に再読み込み
+			location.reload();
 		} else {
 			alert("削除に失敗しました");
 			setDeletingId(null);
@@ -49,10 +65,18 @@ export default function HomeScreen({ users }: Props) {
 		<div className={styles.container}>
 			<div className={styles.headerRow}>
 				<h2 className={styles.title}>ユーザーリスト</h2>
+
+				{currentUid && (
+					<div className="text-sm text-gray-600">
+						<p>ログインUID: {currentUid}</p>
+						<p>ユーザーネーム: {currentName}</p>
+					</div>
+				)}
+
 				<button
 					onClick={async () => {
 						await signOut(auth);
-						router.push("/login"); // ログアウト後にログインページへ
+						router.push("/login");
 					}}
 					className="bg-blue-500 text-white p-2 rounded"
 				>
@@ -62,6 +86,7 @@ export default function HomeScreen({ users }: Props) {
 					＋ 新規ユーザー作成
 				</Link>
 			</div>
+
 			<table className={`table-auto ${styles.userTable}`}>
 				<thead>
 					<tr>
@@ -73,29 +98,6 @@ export default function HomeScreen({ users }: Props) {
 				</thead>
 				<tbody>
 					{users.map((user) => (
-						// <tr key={user.id}>
-						//   <td className={styles.userId}>
-						//     <Link
-						//       href={`/edit/${user.id}`}
-						//       className="text-blue-500 underline"
-						//     >
-						//       {user.id}
-						//     </Link>
-						//   </td>
-						//   {/* <td className={styles.userId}>{user.id}</td> */}
-						//   <td className={styles.userName}>{user.name}</td>
-						//   <td className={styles.userEmail}>{user.email}</td>
-						//   <td>
-						//     <button
-						//       onClick={() => handleDeleteUser(user.id)}
-						//       disabled={deletingId === user.id}
-						//       className="bg-transparent hover:bg-red-100 text-red-500 p-2 rounded"
-						//     >
-						//       <Trash2 className="inline" />
-						//       {/* {deletingId === user.id ? " 削除中..." : " 削除"} */}
-						//     </button>
-						//   </td>
-						// </tr>
 						<tr
 							key={user.id}
 							onClick={() => router.push(`/edit/${user.id}`)}
@@ -107,7 +109,7 @@ export default function HomeScreen({ users }: Props) {
 							<td>
 								<button
 									onClick={(e) => {
-										e.stopPropagation(); // tr のクリックイベントを止める
+										e.stopPropagation();
 										handleDeleteUser(user.id);
 									}}
 									disabled={deletingId === user.id}

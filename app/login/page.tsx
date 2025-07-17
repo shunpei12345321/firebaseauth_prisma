@@ -17,13 +17,21 @@ export default function LoginPage() {
 				password
 			);
 			const token = await userCredential.user.getIdToken();
+			const uid = userCredential.user.uid;
+			const name = userCredential.user.displayName ?? "";
 
 			// Prisma に送信
 			await fetch("/api/auth", {
 				method: "POST",
 				headers: {
+					"Content-Type": "application/json",
 					Authorization: `Bearer ${token}`,
 				},
+				body: JSON.stringify({
+					uid,
+					email,
+					name,
+				}),
 			});
 
 			alert("ログイン成功！");
