@@ -18,6 +18,11 @@ export default function HomeScreen({ users }: Props) {
 	const [deletingId, setDeletingId] = useState<number | null>(null);
 	const [currentUid, setCurrentUid] = useState<string | null>(null);
 	const [currentName, setCurrentName] = useState<string | null>(null);
+	const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+	// const [users, setUsers] = useState([]);
+	const [userList, setUserList] = useState(users);
+	const [loading, setLoading] = useState(true); // ← 追加
+	//
 	const router = useRouter();
 
 	useEffect(() => {
@@ -26,24 +31,46 @@ export default function HomeScreen({ users }: Props) {
 				router.push("/login");
 			} else {
 				setCurrentUid(user.uid);
-				setCurrentName(user.displayName ?? "未設定");
 
 				const token = await user.getIdToken();
 				const res = await fetch("/api/check-user", {
 					method: "POST",
 					headers: {
+						"Content-Type": "application/json",
 						Authorization: `Bearer ${token}`,
 					},
 					body: JSON.stringify({ uid: user.uid }),
 				});
+
 				if (res.status === 404) {
 					router.push("/signup");
+				} else if (res.ok) {
+					const data = await res.json();
+					setCurrentName(data.user.name ?? "未設定");
 				}
 			}
 		});
 
 		return () => unsubscribe();
 	}, [router]);
+
+	useEffect(() => {
+		if (!currentUid) return;
+
+		const fetchUsers = async () => {
+			const res = await fetch(`/api/users?uid=${currentUid}`);
+			if (res.ok) {
+				const data = await res.json();
+				setUserList(data);
+			}
+			setLoading(false); // ローディング完了
+		};
+
+		fetchUsers();
+	}, [currentUid]);
+
+	// ✅ ログイン判定完了するまでは描画しない
+	if (loading) return null;
 
 	const handleDeleteUser = async (id: number) => {
 		if (!confirm("このユーザーを削除してもよろしいですか？")) return;
@@ -68,8 +95,9 @@ export default function HomeScreen({ users }: Props) {
 
 				{currentUid && (
 					<div className="text-sm text-gray-600">
-						<p>ログインUID: {currentUid}</p>
+						{/* <p>ログインUID: {currentUid}</p> */}
 						<p>ユーザーネーム: {currentName}</p>
+						<p>Email:{currentEmail}</p>
 					</div>
 				)}
 
@@ -97,7 +125,7 @@ export default function HomeScreen({ users }: Props) {
 					</tr>
 				</thead>
 				<tbody>
-					{users.map((user) => (
+					{userList.map((user) => (
 						<tr
 							key={user.id}
 							onClick={() => router.push(`/edit/${user.id}`)}

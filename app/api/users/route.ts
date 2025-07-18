@@ -3,23 +3,30 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { UserRepository } from "@/app/_repositories/User";
 
-export async function GET() {
-	const users = await UserRepository.findMany();
+export async function GET(req: NextRequest) {
+	const { searchParams } = new URL(req.url);
+	const uid = searchParams.get("uid");
+
+	if (!uid) {
+		return NextResponse.json({ error: "UID is required" }, { status: 400 });
+	}
+
+	const users = await UserRepository.findManyByUid(uid);
 	return NextResponse.json(users);
 }
 
 export async function POST(req: NextRequest) {
 	try {
-		const { name, email } = await req.json();
+		const { name, email, uid } = await req.json();
 
-		if (!name || !email) {
+		if (!name || !email || !uid) {
 			return NextResponse.json(
 				{ error: "名前とメールが必要です" },
 				{ status: 400 }
 			);
 		}
 
-		const user = await UserRepository.create({ name, email });
+		const user = await UserRepository.create({ name, email, uid });
 		return NextResponse.json(user, { status: 201 });
 	} catch (error) {
 		console.error("POST /api/users error:", error);
